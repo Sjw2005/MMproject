@@ -1,0 +1,86 @@
+
+# Ultralytics YOLO 🚀, AGPL-3.0 license
+# YOLO11 object detection model with P3-P5 outputs. For Usage examples see https://docs.ultralytics.com/tasks/detect
+# Parameters 
+ch: 6
+nc: 5 # number of classes
+scales: # model compound scaling constants, i.e. 'model=yolo11n.yaml' will call yolo11.yaml with scale 'n'
+  # [depth, width, max_channels]
+  n: [0.50, 0.25, 1024] # summary: 319 layers, 2624080 parameters, 2624064 gradients, 6.6 GFLOPs
+  s: [0.50, 0.50, 1024] # summary: 319 layers, 9458752 parameters, 9458736 gradients, 21.7 GFLOPs
+  m: [0.50, 1.00, 512] # summary: 409 layers, 20114688 parameters, 20114672 gradients, 68.5 GFLOPs
+  l: [1.00, 1.00, 512] # summary: 631 layers, 25372160 parameters, 25372144 gradients, 87.6 GFLOPs
+  x: [1.00, 1.50, 512] # summary: 631 layers, 56966176 parameters, 56966160 gradients, 196.0 GFLOPs
+
+backbone:
+  # [from, repeats, module, args]
+  - [-1, 1, IN, []]  # 0
+  - [-1, 1, Multiin, [1]]  # 1
+  - [-2, 1, Multiin, [2]]  # 2
+  # Visible branch
+  - [1, 1, Conv, [64, 3, 2]] # 3-P1/2
+  - [-1, 1, Conv, [128, 3, 2]] # 4-P2/4
+  - [-1, 2, C3k2, [256, False, 0.25]] #5
+  - [-1, 1, Conv, [256, 3, 2]] # 6-P3/8
+  # Infrared branch
+  - [2, 1, Conv, [64, 3, 2]] # 7-P1/2
+  - [-1, 1, Conv, [128, 3, 2]] # 8-P2/4
+  - [-1, 2, C3k2, [256, False, 0.25]]  #9
+  - [-1, 1, Conv, [256, 3, 2]] # 10-P3/8
+
+    # 第一个模块
+  - [[6, 10], 1, LAEF, [256, 512]]   # 11-P3/8 LAEF:Enhanced Features of visible branch with infrared branch
+
+  # - [[6, 11], 1, FeatureAdd, []]       # 12-P3/8 stream one vis+Enhanced Features
+  - [[6, 11], 1, Concat, [1]]
+  - [-1, 2, C3k2, [512, False, 0.25]] #13
+  - [-1, 1, Conv, [512, 3, 2]] # 14-P4/16
+
+  # - [[10, 11], 1, FeatureAdd, []]       # 15-P3/8 stream one ir+Enhanced Features
+  - [[10, 11], 1, Concat, [1]]
+  - [-1, 2, C3k2, [512, False, 0.25]] #16
+  - [-1, 1, Conv, [512, 3, 2]] # 17-P4/16
+
+    # 第二个模块
+  - [[14, 17], 1, LAEF, [512, 512]]   # 18-P4/16 LAEF:Enhanced Features of visible branch with infrared branch
+
+  # - [[14, 18], 1, FeatureAdd, []]       # 19-P3/8 stream one vis+Enhanced Features
+  - [[14, 18], 1, Concat, [1]]
+  - [-1, 2, C3k2, [512, True]] #20
+  - [-1, 1, Conv, [1024, 3, 2]] # 21-P5/32
+  - [-1, 2, C3k2, [1024, True]] #22
+  - [-1, 1, SPPF, [1024, 5]] # 23
+  - [-1, 2, C2PSA, [1024]] # 24
+
+  # - [[17, 18], 1, FeatureAdd, []]       # 25-P3/8 stream one ir+Enhanced Features
+  - [[17, 18], 1, Concat, [1]]
+  - [-1, 2, C3k2, [512, True]]  #26
+  - [-1, 1, Conv, [1024, 3, 2]] # 27-P5/32
+  - [-1, 2, C3k2, [1024, True]]  #28
+  - [-1, 1, SPPF, [1024, 5]] # 29
+  - [-1, 2, C2PSA, [1024]] # 30
+
+  - [[13, 16], 1, MDAFP, [512, 4, 'WithBias', [3,5,7], 0.0, False]]   # 31 Fuse P3/8 (recall-friendly)
+  - [[20, 26], 1, MDAFP, [512, 8, 'WithBias', [5,9,13], 0.0, False]]   # 32 Fuse P4/16 (dim=1024, heads=8)
+  - [[24, 30], 1, MDAFP, [1024, 8, 'WithBias', [7,11,21], 0.0, True]]    # 33 Fuse P5/32 (dim=1024, heads=8)
+
+
+# YOLO11n head
+head:
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]  #34
+  - [[-1, 32], 1, Concat, [1]] # cat backbone P4  35
+  - [-1, 2, C3k2, [512, False]] # 36
+
+  - [-1, 1, nn.Upsample, [None, 2, "nearest"]]  #37
+  - [[-1, 31], 1, Concat, [1]] # cat backbone P3 38
+  - [-1, 3, C3k2, [256, False]] # 39 (P3/8-small)
+
+  - [-1, 1, Conv, [256, 3, 2]]  #40
+  - [[-1, 36], 1, Concat, [1]] # cat head P4 41
+  - [-1, 2, C3k2, [512, False]] # 42 (P4/16-medium)
+
+  - [-1, 1, Conv, [512, 3, 2]]  #43
+  - [[-1, 33], 1, Concat, [1]] # cat head P5  44
+  - [-1, 2, C3k2, [1024, True]] # 45 (P5/32-large)
+
+  - [[39, 42, 45], 1, Detect, [nc]] # Detect(P3, P4, P5)  #46

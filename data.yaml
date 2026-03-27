@@ -1,0 +1,24 @@
+# Train/val/test sets as 1) dir: path/to/imgs, 2) file: path/to/imgs.txt, or 3) list: [path/to/imgs1, path/to/imgs2, ..]
+path:  D:/MMproject/MM/datasets # 数据集路径（修改）
+
+#AutoDL云端路径
+train: /root/autodl-tmp/MM/datasets/images/train  # train images (relative to 'path') 128 images
+val: /root/autodl-tmp/MM/datasets/images/val  # val images (relative to 'path') 128 images
+test: /root/autodl-tmp/MM/datasets/images/test # test images (optional)
+
+#本地训练路径
+#train: images/train  # train images (relative to 'path') 128 images
+#val: images/val  # val images (relative to 'path') 128 images
+#test:  images/test  # test images (optional)
+
+# Classes
+names:
+  0: car
+  1: bus
+  2: van
+  3: truck
+  4: freight_car
+
+# DroneVehicle数据集是由天津大学收集、标注的大型无人机航拍车辆数据集，包含28,439个RGB-红外图像对，可用于多模态训练任务。
+# download：https://github.com/VisDrone/DroneVehicle
+
