@@ -416,8 +416,21 @@ class LoadImagesAndVideos:
             else:   #图片文件
                 self.mode = "image"   #切换模式为图片模式
                 # im0 = cv2.imread(path)  # BGR    #origin_code
-                # 如果ch小于4，说明是可见光图像，否则是红外图像和可见光的合并图像
-                im0 = cv2.imread(path) if self.hyp.ch < 4 else cv2.merge((cv2.imread(ir_path), cv2.imread(path)))
+                # 如果ch小于4，说明是可见光图像，否则是可见光+红外的6通道图像
+                vis_im = cv2.imread(path)
+                if self.hyp.ch < 4:
+                    im0 = vis_im
+                else:
+                    ir_im = cv2.imread(ir_path)
+                    if vis_im is None or ir_im is None:
+                        im0 = None
+                    elif vis_im.shape[:2] != ir_im.shape[:2]:
+                        LOGGER.warning(
+                            f"WARNING ⚠️ Paired image shape mismatch {path}: {vis_im.shape[:2]} vs {ir_path}: {ir_im.shape[:2]}"
+                        )
+                        im0 = None
+                    else:
+                        im0 = np.concatenate((vis_im, ir_im), axis=2)
 
                 if im0 is None:
                     LOGGER.warning(f"WARNING ⚠️ Image Read Error {path}")

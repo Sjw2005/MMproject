@@ -1,5 +1,6 @@
-import torch.nn as nn
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 
 class SE_Block(nn.Module):
     def __init__(self, ch_in, reduction=16):
@@ -97,4 +98,3 @@ class Multiin(nn.Module):  # stereo attention block
         else:
             x = x2               #输出ir特征
         return x
-

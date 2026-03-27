@@ -1,34 +1,27 @@
-from .multimodal import *
-from .A2C2f import *
-from .CFT import *
-from .MBConv import *
-from .CGAFusion import *
-from .PSFM import *
-from .SDFM import *
-from .DFAFusion import *
-from .iRMBFusion import *
-from .TFAM import *
-from .CAFM import *
-from .CMF import *
-from .HSFPN import *
-from .ResNet import *
-from .DEYOLO import *
-from .MultiScaleGatedAttn import *
-from .MFM import *
-from .ICAFusion import *
-from .DEYOLO import *
-from .APConv import *
-from .LAEF import *
-from .MDAF import *
-from .MDAFP import *
-from .LGF import *
-from .MLA import *
-from .ACINet import *
-from .LAE import *
-from .LSK import *
-from .MFM import *
-from .MASAG import *
-from .SFS import *
-from .DMRF import *
-from .CAF import *
-from .MOESelector import *
+from importlib import import_module
+from pathlib import Path
+
+__all__ = []
+
+
+def _register_module(module_name):
+    try:
+        module = import_module(f"{__name__}.{module_name}")
+    except Exception:
+        return
+
+    for name, value in vars(module).items():
+        if name.startswith("_"):
+            continue
+        if getattr(value, "__module__", None) != module.__name__:
+            continue
+        globals()[name] = value
+        __all__.append(name)
+
+
+for _module_path in sorted(Path(__file__).resolve().parent.glob("*.py")):
+    if _module_path.name != "__init__.py":
+        _register_module(_module_path.stem)
+
+
+__all__ = tuple(dict.fromkeys(__all__))

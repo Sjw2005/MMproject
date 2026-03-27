@@ -26,12 +26,34 @@ from ultralytics.utils.torch_utils import (
     fuse_conv_and_bn, fuse_deconv_and_bn, initialize_weights, intersect_dicts, model_info, scale_img, time_sync,
 )
 
-from .AddModules.HGNetV2 import Light_HGBlock
-
 try:
     import thop
 except ImportError:
     thop = None
+
+
+OPTIONAL_MODULE_NAMES = (
+    "A2C2f",
+    "C3k2_MBConv",
+    "A2C2f_MBConv",
+    "C2f_MBConv",
+    "C2fCIB_MBConv",
+    "Add2",
+    "ACINet",
+    "MDAF",
+    "LGF",
+    "MLA",
+    "LSK",
+    "MFM",
+    "MultiScaleGatedAttn",
+    "SFS",
+    "MOESelector",
+    "HGBlock_APConv",
+    "TransformerFusionBlock",
+    "Light_HGBlock",
+)
+for _optional_module_name in OPTIONAL_MODULE_NAMES:
+    globals().setdefault(_optional_module_name, None)
 
 
 class BaseModel(nn.Module):
@@ -963,7 +985,14 @@ def parse_model(d, ch, verbose=True):  # model_dict, input_channels(3)
     for i, (f, n, m, args) in enumerate(d["backbone"] + d["head"]):  # from, number, module, args
         
         # t=m   #修改
-        m = getattr(torch.nn, m[3:]) if "nn." in m else globals()[m]  # get module
+        m_name = m
+        if isinstance(m_name, str):
+            m = getattr(torch.nn, m_name[3:]) if m_name.startswith("nn.") else globals().get(m_name)
+            if m is None:
+                raise KeyError(
+                    f"Module '{m_name}' is not registered. Add it under ultralytics/nn/AddModules and register it in "
+                    "ultralytics/nn/AddModules/__init__.py."
+                )
         for j, a in enumerate(args):
             if isinstance(a, str):
                 try:
@@ -1304,4 +1333,3 @@ def guess_model_task(model):
         "Explicitly define task for your model, i.e. 'task=detect', 'segment', 'classify','pose' or 'obb'."
     )
     return "detect"  # assume detect
-

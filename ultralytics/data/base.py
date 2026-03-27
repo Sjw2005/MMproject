@@ -158,16 +158,25 @@ class BaseDataset(Dataset):
             if fn.exists():  # load npy
                 try:
                     im = np.load(fn)
+                    if self.hyp.ch > 3 and (im.ndim != 3 or im.shape[2] != self.hyp.ch):
+                        im = None
                 except Exception as e:
                     LOGGER.warning(f"{self.prefix}WARNING ⚠️ Removing corrupt *.npy image file {fn} due to: {e}")
                     Path(fn).unlink(missing_ok=True)
-                    im = cv2.imread(f)  # BGR
+                    im = None
             else:  # read image
-                im = cv2.imread(f)  # BGR
-                if self.hyp.ch > 3:  # 如果输入通道数大于3
-                    im = cv2.merge((cv2.imread(ir), im))  # 将可见光图像和红外图像合并
+                im = None
             if im is None:
-                raise FileNotFoundError(f"Image Not Found {f}")
+                im = cv2.imread(f)  # BGR
+                if im is None:
+                    raise FileNotFoundError(f"Image Not Found {f}")
+                if self.hyp.ch > 3:  # 如果输入通道数大于3
+                    ir_im = cv2.imread(ir)
+                    if ir_im is None:
+                        raise FileNotFoundError(f"Paired IR image not found {ir}")
+                    if im.shape[:2] != ir_im.shape[:2]:
+                        raise ValueError(f"Paired image shape mismatch: {f} -> {im.shape[:2]}, {ir} -> {ir_im.shape[:2]}")
+                    im = np.concatenate((im, ir_im), axis=2)
     
 #################################################################################################################
 
