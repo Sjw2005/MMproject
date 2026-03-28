@@ -106,6 +106,15 @@ EXPERIMENTS = {
         lr0=0.001,
         notes="Optimizer ablation for the current DMFNet."
     ),
+    "dmfnet_imgsz960_adamw": ExperimentConfig(
+        name="DMFNet_imgsz960_adamw",
+        model="improve_multimodal/DMFNet.yaml",
+        imgsz=960,
+        batch=8,
+        optimizer="AdamW",
+        lr0=0.001,
+        notes="Recommended first combined improvement experiment: imgsz=960 + AdamW."
+    ),
 }
 
 

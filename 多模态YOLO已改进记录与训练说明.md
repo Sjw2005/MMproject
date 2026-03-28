@@ -111,6 +111,7 @@
 - `dmfnet_imgsz960`
 - `dmfnet_imgsz1280`
 - `dmfnet_adamw`
+- `dmfnet_imgsz960_adamw`
 
 ### 2.8 `train.py` / `val.py` / `predict.py` 已统一到同一配置体系
 
@@ -341,6 +342,14 @@ python train.py dmfnet_imgsz1280
 python train.py dmfnet_adamw
 ```
 
+#### `dmfnet_imgsz960_adamw`
+
+当前最推荐直接开跑的组合改进实验：同时提高分辨率并切换到 `AdamW`。
+
+```bash
+python train.py dmfnet_imgsz960_adamw
+```
+
 ---
 
 ## 6. 推荐训练顺序
@@ -350,12 +359,14 @@ python train.py dmfnet_adamw
 1. `dmfnet`
 2. `dmfnet_imgsz960`
 3. `dmfnet_adamw`
-4. `dmfnet_imgsz1280`
+4. `dmfnet_imgsz960_adamw`
+5. `dmfnet_imgsz1280`
 
 判断逻辑建议是：
 
 - 如果 `imgsz960` 明显优于 `dmfnet`，说明当前主要瓶颈确实是小目标分辨率不足
 - 如果 `adamw` 优于 `dmfnet`，说明当前训练优化方式还有明显空间
+- 如果 `imgsz960_adamw` 进一步优于前两者，说明这两个方向是可叠加收益
 - 如果 `imgsz1280` 继续提升，下一阶段优先做 `P2 head`
 
 ---
@@ -384,7 +395,7 @@ python train.py dmfnet_adamw
 现在你可以先做两件事：
 
 1. 先运行 `python tools/verify_multimodal_setup.py dmfnet` 检查数据
-2. 再运行 `python train.py dmfnet_imgsz960` 开始第一组改进实验
+2. 再运行 `python train.py dmfnet_imgsz960_adamw` 开始当前最推荐的第一组改进实验
 
 如果你下一步需要，我建议继续做：
 
