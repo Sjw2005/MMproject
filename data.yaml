@@ -6,6 +6,13 @@ path: datasets
 train: images/train
 val: images/val
 test: images/test
+input_modality: multimodal
+channel_order: vi_ir
+pair_visible_dir: images
+pair_infrared_dir: image
+verify_pairs: true
+strict_pairing: false
+pair_check_samples: 100
 
 # Classes
 names:

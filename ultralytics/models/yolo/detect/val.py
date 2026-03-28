@@ -7,6 +7,7 @@ import numpy as np
 import torch
 
 from ultralytics.data import build_dataloader, build_yolo_dataset, converter
+from ultralytics.data.multimodal import get_multimodal_settings
 from ultralytics.engine.validator import BaseValidator
 from ultralytics.utils import LOGGER, ops
 from ultralytics.utils.checks import check_requirements
@@ -236,7 +237,16 @@ class DetectionValidator(BaseValidator):
             mode (str): `train` mode or `val` mode, users are able to customize different augmentations for each mode.
             batch (int, optional): Size of batches, this is for `rect`. Defaults to None.
         """
-        return build_yolo_dataset(self.args, img_path, batch, self.data, mode=mode, stride=self.stride)
+        multimodal = get_multimodal_settings(self.args)
+        return build_yolo_dataset(
+            self.args,
+            img_path,
+            batch,
+            self.data,
+            mode=mode,
+            stride=self.stride,
+            multi_modal=multimodal["input_modality"] == "multimodal",
+        )
 
     def get_dataloader(self, dataset_path, batch_size):
         """Construct and return dataloader."""

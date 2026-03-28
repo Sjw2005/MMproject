@@ -2,6 +2,13 @@
 # Default training settings and hyperparameters for medium-augmentation COCO training
 
 ch: 6
+input_modality: multimodal
+channel_order: vi_ir
+pair_visible_dir: images
+pair_infrared_dir: image
+verify_pairs: True
+strict_pairing: False
+pair_check_samples: 100
 task: detect # (str) YOLO task, i.e. detect, segment, classify, pose, obb
 mode: train # (str) YOLO mode, i.e. train, val, predict, export, track, benchmark
 

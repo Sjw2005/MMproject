@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash('c:\\\\project\\\\yoloir_vi\\\\MMproject\\\\MMproject_improvement_plan.md':*)"
+    ]
+  }
+}

@@ -10,6 +10,7 @@ import numpy as np
 import torch
 from PIL import Image
 
+from ultralytics.data.multimodal import get_multimodal_settings
 from ultralytics.data.utils import polygons2masks, polygons2masks_overlap
 from ultralytics.utils import LOGGER, colorstr
 from ultralytics.utils.checks import check_version
@@ -2433,7 +2434,12 @@ def v8_transforms(dataset, imgsz, hyp, stretch=False):
             pre_transform,
             MixUp(dataset, pre_transform=pre_transform, p=hyp.mixup),
             Albumentations(p=0.0),
-            RandomHSV(hgain=hyp.hsv_h, sgain=hyp.hsv_s, vgain=hyp.hsv_v),
+            RandomHSV(
+                hgain=hyp.hsv_h,
+                sgain=hyp.hsv_s,
+                vgain=hyp.hsv_v,
+                order="rgb_ir" if get_multimodal_settings(hyp)["channel_order"] == "vi_ir" else "ir_rgb",
+            ),
             RandomFlip(direction="vertical", p=hyp.flipud),
             RandomFlip(direction="horizontal", p=hyp.fliplr, flip_idx=flip_idx),
         ]

@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from ultralytics.data.multimodal import normalize_channel_order
+
 class SE_Block(nn.Module):
     def __init__(self, ch_in, reduction=16):
         super(SE_Block, self).__init__()
@@ -87,12 +89,16 @@ class FeatureAdd(nn.Module):
 
 
 class Multiin(nn.Module):  # stereo attention block
-    def __init__(self, out=1):
+    def __init__(self, out=1, order="vi_ir"):
         super().__init__()
         self.out = out
+        self.order = normalize_channel_order(order)
 
     def forward(self, x):
-        x1, x2 = x[:, :3, :, :], x[:, 3:, :, :]
+        if self.order == "vi_ir":
+            x1, x2 = x[:, :3, :, :], x[:, 3:, :, :]
+        else:
+            x2, x1 = x[:, :3, :, :], x[:, 3:, :, :]
         if self.out == 1:
             x = x1               #输出rgb特征
         else:

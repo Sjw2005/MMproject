@@ -2,6 +2,7 @@
 
 from ultralytics.engine.predictor import BasePredictor
 from ultralytics.engine.results import Results
+from ultralytics.data.multimodal import get_multimodal_settings, resolve_paired_image_path, split_modalities
 from ultralytics.utils import ops
 
 
@@ -36,18 +37,20 @@ class DetectionPredictor(BasePredictor):
 
         results = []
         ir_result = []
+        multimodal = get_multimodal_settings(self.args)
+        assert self.batch is not None and self.model is not None
+        batch_paths = self.batch[0]
+        model_names = self.model.names
         for i, pred in enumerate(preds):
-            # orig_img = orig_imgs[i]
-            # 先推理可见光
-            orig_img = orig_imgs[i][..., 3:]    # 此时传入进来的im0的前三通道是红外，后三通道是可见光
-            pred[:, :4] = ops.scale_boxes(img.shape[2:], pred[:, :4], orig_img.shape)
-            img_path = self.batch[0][i]
-            results.append(Results(orig_img, path=img_path, names=self.model.names, boxes=pred))
-            # 再推理红外
-            ir_path = img_path.split('images')
-            ir_path = str(ir_path[0] + 'image' + ir_path[1])
-            if orig_imgs[i].shape[-1] >= 4:
-                ir_img = orig_imgs[i][..., :3]
-                ir_result.append(Results(ir_img, path=ir_path, names=self.model.names, boxes=pred))
+            img_path = batch_paths[i]
+            orig_img = orig_imgs[i]
+            if orig_img.ndim == 3 and orig_img.shape[-1] == 6 and multimodal["input_modality"] == "multimodal":
+                visible_img, infrared_img = split_modalities(orig_img, multimodal["channel_order"])
+                pred[:, :4] = ops.scale_boxes(img.shape[2:], pred[:, :4], visible_img.shape)
+                results.append(Results(visible_img, path=img_path, names=model_names, boxes=pred))
+                ir_path = resolve_paired_image_path(img_path, multimodal)
+                ir_result.append(Results(infrared_img, path=str(ir_path), names=model_names, boxes=pred))
+            else:
+                pred[:, :4] = ops.scale_boxes(img.shape[2:], pred[:, :4], orig_img.shape)
+                results.append(Results(orig_img, path=img_path, names=model_names, boxes=pred))
         return results, ir_result
-

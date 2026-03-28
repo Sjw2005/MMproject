@@ -15,6 +15,7 @@ import psutil
 from torch.utils.data import Dataset
 
 from ultralytics.data.utils import FORMATS_HELP_MSG, HELP_URL, IMG_FORMATS
+from ultralytics.data.multimodal import collect_pairing_issues, fuse_modalities, get_multimodal_settings, resolve_paired_image_path
 from ultralytics.utils import DEFAULT_CFG, LOCAL_RANK, LOGGER, NUM_THREADS, TQDM
 
 
@@ -78,10 +79,25 @@ class BaseDataset(Dataset):
         self.batch_size = batch_size
         self.stride = stride
         self.hyp = hyp  # 属性初始化，hyp是一个字典，包含了训练的超参数
+        self.multimodal = get_multimodal_settings(hyp)
         self.pad = pad
         if self.rect:
             assert self.batch_size is not None
             self.set_rectangle()
+
+        if self.multimodal["input_modality"] == "multimodal" and self.multimodal["verify_pairs"]:
+            sample_count = min(len(self.im_files), max(self.multimodal["pair_check_samples"], 0))
+            if sample_count:
+                pair_issues = collect_pairing_issues(self.im_files[:sample_count], self.multimodal, check_shapes=True)
+                if pair_issues:
+                    preview = "\n".join(f"- {issue}" for issue in pair_issues[:10])
+                    message = (
+                        f"{self.prefix}Found {len(pair_issues)} IR/VI pairing issue(s) while scanning the first "
+                        f"{sample_count} sample(s):\n{preview}"
+                    )
+                    if self.multimodal["strict_pairing"]:
+                        raise ValueError(message)
+                    LOGGER.warning(message)
 
         # Buffer thread for mosaic images
         self.buffer = []  # buffer size = batch size
@@ -89,7 +105,10 @@ class BaseDataset(Dataset):
 
         # Cache images (options are cache = True, False, None, "ram", "disk")
         self.ims, self.im_hw0, self.im_hw = [None] * self.ni, [None] * self.ni, [None] * self.ni
-        self.npy_files = [Path(f).with_suffix(".npy") for f in self.im_files]
+        cache_tag = self.multimodal["input_modality"]
+        if cache_tag == "multimodal":
+            cache_tag = f"{cache_tag}.{self.multimodal['channel_order']}"
+        self.npy_files = [Path(f).with_name(f"{Path(f).stem}.{cache_tag}.npy") for f in self.im_files]
         self.cache = cache.lower() if isinstance(cache, str) else "ram" if cache is True else None
         if self.cache == "ram" and self.check_cache_ram():
             if hyp.deterministic:
@@ -153,7 +172,6 @@ class BaseDataset(Dataset):
     def load_image(self, i, rect_mode=True):
         """Loads 1 image from dataset index 'i', returns (im, resized hw)."""
         im, f, fn = self.ims[i], self.im_files[i], self.npy_files[i]     # image, file, file with .npy extension
-        ir = f.replace("images", 'image')  #通过可见光图片的路径，找到对应的红外图片路径
         if im is None:  # not cached in RAM
             if fn.exists():  # load npy
                 try:
@@ -170,13 +188,23 @@ class BaseDataset(Dataset):
                 im = cv2.imread(f)  # BGR
                 if im is None:
                     raise FileNotFoundError(f"Image Not Found {f}")
-                if self.hyp.ch > 3:  # 如果输入通道数大于3
-                    ir_im = cv2.imread(ir)
+                modality = self.multimodal["input_modality"]
+                if modality == "infrared":
+                    infrared_path = resolve_paired_image_path(f, self.multimodal)
+                    ir_im = cv2.imread(str(infrared_path))
                     if ir_im is None:
-                        raise FileNotFoundError(f"Paired IR image not found {ir}")
+                        raise FileNotFoundError(f"Paired IR image not found {infrared_path}")
+                    im = ir_im
+                elif self.hyp.ch > 3 and modality == "multimodal":  # 如果输入通道数大于3
+                    infrared_path = resolve_paired_image_path(f, self.multimodal)
+                    ir_im = cv2.imread(str(infrared_path))
+                    if ir_im is None:
+                        raise FileNotFoundError(f"Paired IR image not found {infrared_path}")
                     if im.shape[:2] != ir_im.shape[:2]:
-                        raise ValueError(f"Paired image shape mismatch: {f} -> {im.shape[:2]}, {ir} -> {ir_im.shape[:2]}")
-                    im = np.concatenate((im, ir_im), axis=2)
+                        raise ValueError(
+                            f"Paired image shape mismatch: {f} -> {im.shape[:2]}, {infrared_path} -> {ir_im.shape[:2]}"
+                        )
+                    im = fuse_modalities(im, ir_im, self.multimodal["channel_order"])
     
 #################################################################################################################
 

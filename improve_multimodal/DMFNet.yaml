@@ -3,6 +3,7 @@
 # YOLO11 object detection model with P3-P5 outputs. For Usage examples see https://docs.ultralytics.com/tasks/detect
 # Parameters 
 ch: 6
+channel_order: vi_ir
 nc: 5 # number of classes
 scales: # model compound scaling constants, i.e. 'model=yolo11n.yaml' will call yolo11.yaml with scale 'n'
   # [depth, width, max_channels]
@@ -15,8 +16,8 @@ scales: # model compound scaling constants, i.e. 'model=yolo11n.yaml' will call 
 backbone:
   # [from, repeats, module, args]
   - [-1, 1, IN, []]  # 0
-  - [-1, 1, Multiin, [1]]  # 1
-  - [-2, 1, Multiin, [2]]  # 2
+  - [-1, 1, Multiin, [1, 'vi_ir']]  # 1
+  - [-2, 1, Multiin, [2, 'vi_ir']]  # 2
   # Visible branch
   - [1, 1, Conv, [64, 3, 2]] # 3-P1/2
   - [-1, 1, Conv, [128, 3, 2]] # 4-P2/4
